@@ -1,20 +1,28 @@
+from urllib import request
+from django.http import QueryDict
 from django.shortcuts import render, redirect
 from django.shortcuts import get_object_or_404, render
 from django.core.paginator import Paginator
 from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required
 
 from .forms import PostForm
-
 from .models import Group, Post
+from yatube.settings import PAGINOR_COUNT_PAGE
 
 User = get_user_model()
 
 
+def paginator(request: request, post_list: QueryDict) -> Paginator:
+    """Возращает готовый page_obj для пагинации """
+    paginator = Paginator(post_list, PAGINOR_COUNT_PAGE)
+    page_number = request.GET.get('page')
+    return paginator.get_page(page_number)
+
+
 def index(request):
     post_list = Post.objects.all().order_by('-pub_date')
-    paginator = Paginator(post_list, 10)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    page_obj = paginator(request, post_list)
     title = 'Последние обновления на сайте'
     context = {
         'page_obj': page_obj,
@@ -26,9 +34,7 @@ def index(request):
 def group_posts(request, slug):
     group = get_object_or_404(Group, slug=slug)
     post_list = Post.objects.filter(group=group).order_by('-pub_date')
-    paginator = Paginator(post_list, 10)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    page_obj = page_obj = paginator(request, post_list)
     title = f'Записи сообщества {group.title}'
     context = {
         'group': group,
@@ -40,14 +46,12 @@ def group_posts(request, slug):
 
 def profile(request, username):
     title = f'Профайл пользователя {username}'
-    author = User.objects.get(username=username)
+    author = get_object_or_404(User, username=username)
     count = Post.objects.filter(
         author=author
     ).count()
     post_list = Post.objects.filter(author=author).order_by('-pub_date')
-    paginator = Paginator(post_list, 10)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    page_obj = page_obj = paginator(request, post_list)
     context = {
         'author': author,
         'title': title,
@@ -59,29 +63,27 @@ def profile(request, username):
 
 
 def post_detail(request, post_id):
-    title = Post.objects.get(pk=post_id)
-    post = Post.objects.get(pk=post_id)
+    title = get_object_or_404(Post, pk=post_id)
+    post = title
+    user = request.user
     count = post.author.posts.count()
     context = {
         'title': title,
         'post': post,
         'count': count,
+        'user': user
     }
     return render(request, 'posts/post_detail.html', context)
 
 
+@login_required
 def post_create(request):
-    if request.method == 'POST':
-        form = PostForm(request.POST)
-        if form.is_valid():
-            text = form.cleaned_data['text']
-            group = form.cleaned_data['group']
-            author = User.objects.get(username=request.user)
-            Post.objects.create(text=text, group=group, author=author)
-            return redirect('posts:profile', author)
-        return render(request, 'posts/create_post.html')
-
-    form = PostForm()
+    form = PostForm(request.POST or None)
+    if form.is_valid():
+        post = form.save(commit=False)
+        post.author = request.user
+        post.save()
+        return redirect('posts:profile', request.user)
     title = 'Новый пост'
     context = {
         'form': form,
@@ -90,18 +92,16 @@ def post_create(request):
     return render(request, 'posts/create_post.html', context)
 
 
+@login_required
 def post_edit(request, post_id):
-    post = Post.objects.get(pk=post_id)
+    post = get_object_or_404(Post, pk=post_id)
     author_post = post.author
     if request.user != author_post:
         return redirect('posts:post_detail', post_id)
-    if request.method == 'POST':
-        form = PostForm(request.POST, instance=post)
-        if form.is_valid():
-            form.save()
+    form = PostForm(request.POST or None, instance=post)
+    if form.is_valid():
+        form.save()
         return redirect('posts:post_detail', post_id)
-
-    form = PostForm(instance=post)
     title = 'Редактирование поста'
     is_edit = True
     context = {
