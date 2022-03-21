@@ -79,7 +79,6 @@ def post_create(request):
             author = User.objects.get(username=request.user)
             Post.objects.create(text=text, group=group, author=author)
             return redirect('posts:profile', author)
-        
         return render(request, 'posts/create_post.html')
 
     form = PostForm()
