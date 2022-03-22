@@ -1,23 +1,13 @@
-from urllib import request
-from django.http import QueryDict
 from django.shortcuts import render, redirect
 from django.shortcuts import get_object_or_404, render
-from django.core.paginator import Paginator
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 
 from .forms import PostForm
 from .models import Group, Post
-from yatube.settings import PAGINOR_COUNT_PAGE
+from .utils import paginator
 
 User = get_user_model()
-
-
-def paginator(request: request, post_list: QueryDict) -> Paginator:
-    """Возращает готовый page_obj для пагинации """
-    paginator = Paginator(post_list, PAGINOR_COUNT_PAGE)
-    page_number = request.GET.get('page')
-    return paginator.get_page(page_number)
 
 
 def index(request):
