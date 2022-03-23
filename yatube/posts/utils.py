@@ -1,7 +1,6 @@
 from urllib import request
 
 from django.core.paginator import Paginator
-
 from yatube.settings import PAGINOR_COUNT_PAGE
 
 

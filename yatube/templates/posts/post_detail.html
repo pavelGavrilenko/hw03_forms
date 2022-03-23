@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block title %} 
-  {{ title| truncatechars:30}}
+  {{ post | truncatechars:30 }}
 {% endblock %}
 {% block content %}
     <main>
@@ -35,7 +35,7 @@
           <p>
            {{ post }} 
           </p>
-          {% if post.author == user %}
+          {% if post.author == request.user %}
           <a class="btn btn-primary" href="{% url 'posts:post_edit' post.pk %}">
             редактировать запись
           </a>  
